@@ -1,5 +1,7 @@
 # SummerProjectMSBA
 
+The main file is SL_Resnet.py for supervised learning
+
 Steps to run:
 
 Clone the repo
