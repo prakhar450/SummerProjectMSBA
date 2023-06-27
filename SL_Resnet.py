@@ -7,6 +7,16 @@ import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import pandas as pd
+import torch.nn as nn
+import torch.optim as optim
+from torch.optim import lr_scheduler
+import torch.backends.cudnn as cudnn
+import torchvision
+import time
+
+cudnn.benchmark = True
+plt.ion()   # interactive mode
+
 
 # Ignore warnings
 import warnings
@@ -16,13 +26,20 @@ plt.ion()
 
 
 # Global Variables
+
 np.random.seed(100)
 nrows = 400
 ncolumns = 300
 batch_size = 4
-img_dir = '/Users/prakharsrivastav/Summer2023/place-pulse-2.0/images'
-image_score_df = '/Users/prakharsrivastav/Summer2023/place-pulse-2.0/smaller_image_score_table.csv'
+num_workers = 0
 
+img_dir = '/Users/prakharsrivastav/Summer2023/place-pulse-2.0/images'
+image_score_df_train = '/Users/prakharsrivastav/Summer2023/place-pulse-2.0/smaller_image_score_table_train.csv'
+image_score_df_val = '/Users/prakharsrivastav/Summer2023/place-pulse-2.0/smaller_image_score_table_val.csv'
+csv_paths = {'train': image_score_df_train, 'val': image_score_df_val}
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
 
 # Utility Classes
 class CustomDataset(Dataset):
@@ -49,48 +66,28 @@ class CustomDataset(Dataset):
         
         return sample
 
-
-
-# Sample Data Loader
-
-image_dataset = CustomDataset(csv_path=image_score_df, img_dir=img_dir)
-
-
-## Plot the first 4 images to visualise
-fig = plt.figure()
-for i, sample in enumerate(image_dataset):
-    print(i, sample['image'].shape, sample['score'])
-
-    ax = plt.subplot(1, 4, i+1)
-    plt.tight_layout()
-    ax.set_title('Sample #{}'.format(i))
-    ax.axis('off')
-    plt.imshow(sample['image'])
-    
-    if i == 3:
-        #plt.show(block = True)
-        break
-
 # Data Loaders
-tsfrm = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Resize((256,256)),
-    transforms.CenterCrop(224),
-    # transforms.Normalize(
-    #     mean=[0.485, 0.456, 0.406],
-    #     std=[0.229, 0.224, 0.225]
-    # )
-])
+data_transforms = {
+    'train' : transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Resize((256,256)),
+        transforms.CenterCrop(224)
+        ]),
+    'val' : transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Resize((256,256)),
+        transforms.CenterCrop(224)
+        ])
+}
 
-transformed_image_dataset = CustomDataset(csv_path=image_score_df, img_dir=img_dir, transform=tsfrm)
+transformed_image_datasets = {x: CustomDataset(csv_path=csv_paths[x], img_dir=img_dir, transform=data_transforms[x]) 
+                              for x in ['train', 'val'] }
 
-for i, sample in enumerate(transformed_image_dataset):
-    print(i, sample['image'].size(), sample['score'])
-    if i ==3:
-        break
 
-dataloader = DataLoader(transformed_image_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+dataloaders = { x: DataLoader(transformed_image_datasets[x], batch_size=batch_size, shuffle=True, num_workers=num_workers)
+               for x in ['train', 'val'] }
 
+dataset_sizes = {x: len(transformed_image_datasets[x]) for x in ['train', 'val']}
 
 # Helper function to show a batch
 def show_batch(sample_batched):
@@ -105,7 +102,7 @@ def show_batch(sample_batched):
 # you might need to go back and change ``num_workers`` to 0.
 
 # if __name__ == '__main__':
-for i_batch, sample_batched in enumerate(dataloader):
+for i_batch, sample_batched in enumerate(dataloaders['train']):
     print(i_batch, sample_batched['image'].size(),
           sample_batched['score'])
 
@@ -118,23 +115,17 @@ for i_batch, sample_batched in enumerate(dataloader):
         plt.show()
         break
 
-
-# Model Implementation
-
+# Helper Functions for Model Training
 
 
 
 
-
-# Model Training
-
+# Model Definition
 
 
 
 
-
-
-# Model Testing
+# Model Training and Evaluation
 
 
 
