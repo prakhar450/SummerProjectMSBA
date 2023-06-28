@@ -5,7 +5,7 @@ from skimage import io
 import os
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
+from torchvision import transforms, utils, models
 import pandas as pd
 import torch.nn as nn
 import torch.optim as optim
@@ -211,12 +211,25 @@ def visualize_model(model, num_images=6):
 
 # Model Definition
 
+model_ft = models.resnet34(weights='IMAGENET1K_V1')
+num_ftrs = model_ft.fc.in_features
+model_ft.fc = nn.Linear(num_ftrs, 1)
 
+model_ft = model_ft.to(device)
+
+criterion = nn.L1Loss()
+
+# Observe that all parameters are being optimized
+optimizer_ft = optim.Adam(model_ft.parameters(), lr=0.001)
+
+# Decay LR by a factor of 0.1 every 7 epochs
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
 
 
 
 # Model Training and Evaluation
 
+model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler, num_epochs=25)
 
 
 
@@ -225,4 +238,4 @@ def visualize_model(model, num_images=6):
 # Examples to demo
 
 
-
+visualize_model(model_ft)
