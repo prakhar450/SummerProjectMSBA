@@ -182,8 +182,35 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
     return model
 
 
+# Visualising model with some images
+
+def visualize_model(model, num_images=6):
+    was_training = model.training
+    model.eval()
+    images_so_far = 0
+    fig = plt.figure()
+
+    with torch.no_grad():
+        for i, (inputs, scores) in enumerate(dataloaders['val']):
+            inputs = inputs.to(device)
+            scores = scores.to(device)
+
+            outputs = model(inputs)
+
+            for j in range(inputs.size()[0]):
+                images_so_far += 1
+                ax = plt.subplot(num_images//2, 2, images_so_far)
+                ax.axis('off')
+                ax.set_title(f'predicted: {outputs[j]}')
+                plt.imshow(inputs.cpu().data[j])
+
+                if images_so_far == num_images:
+                    model.train(mode=was_training)
+                    return
+        model.train(mode=was_training)
 
 # Model Definition
+
 
 
 
