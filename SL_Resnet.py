@@ -97,7 +97,7 @@ def show_batch(sample_batched):
 
     grid = utils.make_grid(images_batch)
     plt.title('Batch from dataloader')
-    plt.imshow(grid.numpy().transpose((1, 2, 0)))
+    #plt.imshow(grid.numpy().transpose((1, 2, 0)))
 
 # if __name__ == '__main__':
 for i_batch, sample_batched in enumerate(dataloaders['train']):
@@ -110,7 +110,7 @@ for i_batch, sample_batched in enumerate(dataloaders['train']):
         show_batch(sample_batched)
         plt.axis('off')
         plt.ioff()
-        plt.show()
+        #plt.show()
         break
 
 # Helper Functions for Model Training
@@ -123,7 +123,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
         best_model_params_path = os.path.join(tempdir, 'best_model_params.pt')
 
         torch.save(model.state_dict(), best_model_params_path)
-        best_loss = 0.0
+        best_loss = 10000.0
 
         for epoch in range(num_epochs):
             print(f'Epoch {epoch}/{num_epochs - 1}')
@@ -139,9 +139,9 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
                 running_loss = 0.0
 
                 # Iterate over data.
-                for inputs, scores in dataloaders[phase]:
-                    inputs = inputs.to(device)
-                    scores = scores.to(device)
+                for sample_batch in dataloaders[phase]:
+                    inputs = sample_batch['image'].to(device)
+                    scores = sample_batch['score'].to(device)
 
                     # zero the parameter gradients
                     optimizer.zero_grad()
@@ -191,9 +191,9 @@ def visualize_model(model, num_images=6):
     fig = plt.figure()
 
     with torch.no_grad():
-        for i, (inputs, scores) in enumerate(dataloaders['val']):
-            inputs = inputs.to(device)
-            scores = scores.to(device)
+        for sample_batch in dataloaders['val']:
+            inputs = sample_batch['image'].to(device)
+            scores = sample_batch['score'].to(device)
 
             outputs = model(inputs)
 
@@ -201,7 +201,7 @@ def visualize_model(model, num_images=6):
                 images_so_far += 1
                 ax = plt.subplot(num_images//2, 2, images_so_far)
                 ax.axis('off')
-                ax.set_title(f'predicted: {outputs[j]}')
+                ax.set_title(f'predicted: {outputs[j]} and score: {scores[j]}')
                 plt.imshow(inputs.cpu().data[j])
 
                 if images_so_far == num_images:
