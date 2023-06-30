@@ -34,9 +34,9 @@ ncolumns = 300
 batch_size = 4
 num_workers = 0
 
-img_dir = '/Users/prakharsrivastav/Summer2023/place-pulse-2.0/images'
-image_score_df_train = '/Users/prakharsrivastav/Summer2023/place-pulse-2.0/smaller_image_score_table_train.csv'
-image_score_df_val = '/Users/prakharsrivastav/Summer2023/place-pulse-2.0/smaller_image_score_table_val.csv'
+img_dir = '../images'
+image_score_df_train = '../smaller_image_score_table_train.csv'
+image_score_df_val = '../smaller_image_score_table_val.csv'
 csv_paths = {'train': image_score_df_train, 'val': image_score_df_val}
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
