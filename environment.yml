@@ -1,0 +1,11 @@
+name: train_sl
+dependencies:
+  - conda
+  - python=3.9
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - tensorflow
+  - scikit-image
+  - pytorch
+  - torchvision

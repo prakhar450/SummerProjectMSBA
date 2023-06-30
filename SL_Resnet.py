@@ -11,7 +11,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 import torch.backends.cudnn as cudnn
-import torchvision
 import time
 from tempfile import TemporaryDirectory
 
@@ -31,7 +30,8 @@ plt.ion()
 np.random.seed(100)
 nrows = 400
 ncolumns = 300
-batch_size = 4
+batch_size = 32
+num_epochs = 20
 num_workers = 0
 
 img_dir = '../images'
@@ -115,7 +115,7 @@ for i_batch, sample_batched in enumerate(dataloaders['train']):
 
 # Helper Functions for Model Training
 
-def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
+def train_model(model, criterion, optimizer, scheduler, num_epochs):
     since = time.time()
 
     # Create a temporary directory to save training checkpoints
@@ -188,7 +188,7 @@ def visualize_model(model, num_images=6):
     was_training = model.training
     model.eval()
     images_so_far = 0
-    fig = plt.figure()
+    #fig = plt.figure()
 
     with torch.no_grad():
         for sample_batch in dataloaders['val']:
@@ -199,10 +199,11 @@ def visualize_model(model, num_images=6):
 
             for j in range(inputs.size()[0]):
                 images_so_far += 1
-                ax = plt.subplot(num_images//2, 2, images_so_far)
-                ax.axis('off')
-                ax.set_title(f'predicted: {outputs[j]} and score: {scores[j]}')
-                plt.imshow(inputs.cpu().data[j])
+                print(f'predicted: {outputs[j]} and score: {scores[j]}')
+                #ax = plt.subplot(num_images//2, 2, images_so_far)
+                #ax.axis('off')
+                #ax.set_title(f'predicted: {outputs[j]} and score: {scores[j]}')
+                #plt.imshow(inputs.cpu().data[j])
 
                 if images_so_far == num_images:
                     model.train(mode=was_training)
@@ -229,10 +230,12 @@ exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
 
 # Model Training and Evaluation
 
-model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler, num_epochs=25)
+model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler, num_epochs)
 
 
+# Save Model State
 
+torch.save(model_ft.state_dict(), "SL_Resnet_state.pth")
 
 
 # Examples to demo
