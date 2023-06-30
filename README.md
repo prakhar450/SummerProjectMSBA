@@ -4,8 +4,7 @@ The main file is SL_Resnet.py for supervised learning
 
 Steps to run:
 
-Clone the repo
+The repository is cloned in our main work folder under 'prakhar_test'
 
-Set the paths in the file SL_Resnet.py
+python3 SL_Resnet.py should run the training of the model
 
-Run the script
