@@ -13,6 +13,7 @@ from torch.optim import lr_scheduler
 import torch.backends.cudnn as cudnn
 import time
 from tempfile import TemporaryDirectory
+import sys
 
 cudnn.benchmark = True
 plt.ion()   # interactive mode
@@ -35,6 +36,8 @@ num_epochs = 20
 num_workers = 0
 
 img_dir = '../images'
+#image_score_df_train = '../full_image_score_table_train.csv'
+#image_score_df_val = '../full_image_score_table_val.csv'
 image_score_df_train = '../smaller_image_score_table_train.csv'
 image_score_df_val = '../smaller_image_score_table_val.csv'
 csv_paths = {'train': image_score_df_train, 'val': image_score_df_val}
@@ -212,7 +215,10 @@ def visualize_model(model, num_images=6):
 
 # Model Definition
 
-model_ft = models.resnet34(weights='IMAGENET1K_V1')
+#model_ft = models.resnet34(weights='IMAGENET1K_V1')
+pretrained = sys.argv[2]
+model_ft = models.resnet34(pretrained = pretrained)
+
 num_ftrs = model_ft.fc.in_features
 model_ft.fc = nn.Linear(num_ftrs, 1)
 
@@ -234,9 +240,8 @@ model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler, num_
 
 
 # Save Model State
-
-torch.save(model_ft.state_dict(), "SL_Resnet_state.pth")
-
+name_of_model_file = "./saved_models/{}".format(sys.argv[1])
+torch.save(model_ft.state_dict(), name_of_model_file)
 
 # Examples to demo
 
