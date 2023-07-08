@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from skimage import io
 import os
+# jafhjeafgj
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils, models
@@ -31,15 +32,13 @@ plt.ion()
 np.random.seed(100)
 nrows = 400
 ncolumns = 300
-batch_size = 32
-num_epochs = 20
+batch_size = int(sys.argv[5])
+num_epochs = int(sys.argv[4])
 num_workers = 0
 
 img_dir = '../images'
-#image_score_df_train = '../full_image_score_table_train.csv'
-#image_score_df_val = '../full_image_score_table_val.csv'
-image_score_df_train = '../smaller_image_score_table_train.csv'
-image_score_df_val = '../smaller_image_score_table_val.csv'
+image_score_df_train = '../{}_image_score_table_train.csv'.format(sys.argv[3])
+image_score_df_val = '../{}_image_score_table_val.csv'.format(sys.argv[3])
 csv_paths = {'train': image_score_df_train, 'val': image_score_df_val}
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -217,7 +216,9 @@ def visualize_model(model, num_images=6):
 
 #model_ft = models.resnet34(weights='IMAGENET1K_V1')
 pretrained = sys.argv[2]
-model_ft = models.resnet34(pretrained = pretrained)
+#model_ft = models.resnet34(pretrained = pretrained)
+#model_ft = models.resnet50(pretrained = pretrained)
+model_ft = models.resnet101(pretrained = pretrained)
 
 num_ftrs = model_ft.fc.in_features
 model_ft.fc = nn.Linear(num_ftrs, 1)
