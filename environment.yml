@@ -1,6 +1,5 @@
 name: train_sl
 dependencies:
-  - conda
   - python=3.9
   - pandas
   - matplotlib
@@ -9,4 +8,3 @@ dependencies:
   - scikit-image
   - pytorch
   - torchvision
-  - sys

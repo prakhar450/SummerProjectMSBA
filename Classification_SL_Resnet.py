@@ -6,6 +6,7 @@ import os
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils, models
+from torchvision.models import resnet50, ResNet50_Weights
 import pandas as pd
 import torch.nn as nn
 import torch.optim as optim
@@ -36,8 +37,8 @@ num_epochs = int(sys.argv[4])
 num_workers = 0
 
 img_dir = '../images'
-image_score_df_train = '../{}_balanced_df_train.csv'.format(sys.argv[3])
-image_score_df_val = '../{}_balanced_df_valid.csv'.format(sys.argv[3])
+image_score_df_train = '../{}_balanced_df_train_{}.csv'.format(sys.argv[3],sys.argv[6])
+image_score_df_val = '../{}_balanced_df_valid_{}.csv'.format(sys.argv[3],sys.argv[6])
 csv_paths = {'train': image_score_df_train, 'val': image_score_df_val}
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -74,17 +75,17 @@ data_transforms = {
         transforms.ToTensor(),
         transforms.Resize((256,256)),
         transforms.CenterCrop(224),
-        transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
-        transforms.RandomRotation(degrees=(0, 180)),
-        transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5))
+#        transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
+#        transforms.RandomRotation(degrees=(0, 180)),
+#        transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5))
         ]),
     'val' : transforms.Compose([
         transforms.ToTensor(),
         transforms.Resize((256,256)),
         transforms.CenterCrop(224),
-        transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
-        transforms.RandomRotation(degrees=(0, 180)),
-        transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5))
+#        transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
+#        transforms.RandomRotation(degrees=(0, 180)),
+#        transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5))
         ])
 }
 
@@ -131,7 +132,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs):
         best_model_params_path = os.path.join(tempdir, 'best_model_params.pt')
 
         torch.save(model.state_dict(), best_model_params_path)
-        best_loss = 10000.0
+        best_acc = 0.0
 
         for epoch in range(num_epochs):
             print(f'Epoch {epoch}/{num_epochs - 1}')
@@ -145,7 +146,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs):
                     model.eval()   # Set model to evaluate mode
 
                 running_loss = 0.0
-
+                running_corrects = 0
                 # Iterate over data.
                 for sample_batch in dataloaders[phase]:
                     inputs = sample_batch['image'].to(device)
@@ -158,6 +159,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs):
                     # track history if only in train
                     with torch.set_grad_enabled(phase == 'train'):
                         outputs = model(inputs)
+                        _, preds = torch.max(outputs, 1)
                         loss = criterion(outputs, scores)
 
                         # backward + optimize only if in training phase
@@ -167,23 +169,24 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs):
 
                     # statistics
                     running_loss += loss.item() * inputs.size(0)
+                    running_corrects += torch.sum(preds/3 == scores.data/3)
                 if phase == 'train':
                     scheduler.step()
 
                 epoch_loss = running_loss / dataset_sizes[phase]
+                epoch_acc = running_corrects.double() / dataset_sizes[phase]
 
-                print(f'{phase} Loss: {epoch_loss:.4f}')
-
+                print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
                 # deep copy the model
-                if phase == 'val' and epoch_loss < best_loss:
-                    best_loss = epoch_loss
+                if phase == 'val' and epoch_acc > best_acc:
+                    best_acc = epoch_acc
                     torch.save(model.state_dict(), best_model_params_path)
 
             print()
 
         time_elapsed = time.time() - since
         print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-        print(f'Best val Loss: {best_loss:4f}')
+        print(f'Best val Acc: {best_acc:4f}')
 
         # load best model weights
         model.load_state_dict(torch.load(best_model_params_path))
@@ -227,20 +230,21 @@ def visualize_model(model, num_images=6):
 # Model Definition
 
 #model_ft = models.resnet34(weights='IMAGENET1K_V1')
-#pretrained = sys.argv[2]
+pretrained = sys.argv[2]
 #model_ft = models.resnet34(pretrained = pretrained)
+model_ft = resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)
 #model_ft = models.resnet50(pretrained = pretrained)
-model_ft = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)
+#model_ft = models.resnet101(pretrained = pretrained)
 
 num_ftrs = model_ft.fc.in_features
-model_ft.fc = nn.Linear(num_ftrs, 1)
+model_ft.fc = nn.Linear(num_ftrs, 37)
 
 model_ft = model_ft.to(device)
 
-criterion = nn.L1Loss()
+criterion = nn.CrossEntropyLoss()
 
 # Observe that all parameters are being optimized
-optimizer_ft = optim.Adam(model_ft.parameters(), lr=0.01)
+optimizer_ft = optim.SGD(model_ft.parameters(), lr=0.01, momentum=0.9)
 
 # Decay LR by a factor of 0.3 every 10 epochs
 exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=10, gamma=0.3)
