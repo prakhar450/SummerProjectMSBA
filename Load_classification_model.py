@@ -30,24 +30,19 @@ plt.ion()
 """
 Arguments to this code
 
-1. model name to be saved
+1. model name to be loaded
 2. folder name (beautiful etc)
 3. US/OECD
 4. full/small
-5. batch size
-6. epochs
-7. output csv file name
-
+5. output csv file name
+6. batch_size
 """
 
 # Global Variables
 
 np.random.seed(100)
-nrows = 400
-ncolumns = 300
-batch_size = int(sys.argv[5])
-num_epochs = int(sys.argv[6])
 num_workers = 0
+batch_size = int(sys.argv[6])
 
 img_dir = '../images'
 
@@ -77,7 +72,7 @@ class CustomDataset(Dataset):
         img_path = os.path.join(self.img_dir, self.df.iloc[index, 1])
         image = io.imread(img_path)
         score = self.df.iloc[index, 2]
-        actual_score = self.df.iloc[index, 4]
+        actual_score = self.df.iloc[index, 6]
 
         sample = {'image': image, 'score': score, 'actual_score': actual_score}
 
@@ -120,75 +115,6 @@ for i_batch, sample_batched in enumerate(dataloaders['train']):
     if i_batch == 3:
        break
 
-# Helper Functions for Model Training
-
-def train_model(model, criterion, optimizer, scheduler, num_epochs):
-    since = time.time()
-
-    # Create a temporary directory to save training checkpoints
-    with TemporaryDirectory() as tempdir:
-        best_model_params_path = os.path.join(tempdir, 'best_model_params.pt')
-
-        torch.save(model.state_dict(), best_model_params_path)
-        best_acc = 0.0
-
-        for epoch in range(num_epochs):
-            print(f'Epoch {epoch}/{num_epochs - 1}')
-            print('-' * 10)
-
-            # Each epoch has a training and validation phase
-            for phase in ['train', 'val']:
-                if phase == 'train':
-                    model.train()  # Set model to training mode
-                else:
-                    model.eval()   # Set model to evaluate mode
-
-                running_loss = 0.0
-                running_corrects = 0
-                # Iterate over data.
-                for sample_batch in dataloaders[phase]:
-                    inputs = sample_batch['image'].to(device)
-                    scores = sample_batch['score'].to(device)
-
-                    # zero the parameter gradients
-                    optimizer.zero_grad()
-
-                    # forward
-                    # track history if only in train
-                    with torch.set_grad_enabled(phase == 'train'):
-                        outputs = model(inputs)
-                        _, preds = torch.max(outputs, 1)
-                        loss = criterion(outputs, scores)
-
-                        # backward + optimize only if in training phase
-                        if phase == 'train':
-                            loss.backward()
-                            optimizer.step()
-
-                    # statistics
-                    running_loss += loss.item() * inputs.size(0)
-                    running_corrects += torch.sum(preds == scores.data)
-                if phase == 'train':
-                    scheduler.step()
-
-                epoch_loss = running_loss / dataset_sizes[phase]
-                epoch_acc = running_corrects.double() / dataset_sizes[phase]
-
-                print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
-                # deep copy the model
-                if phase == 'val' and epoch_acc > best_acc:
-                    best_acc = epoch_acc
-                    torch.save(model.state_dict(), best_model_params_path)
-
-            print()
-
-        time_elapsed = time.time() - since
-        print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-        print(f'Best val Acc: {best_acc:4f}')
-
-        # load best model weights
-        model.load_state_dict(torch.load(best_model_params_path))
-    return model
 
 
 # Visualising model with some images
@@ -220,7 +146,7 @@ def visualize_model(model, num_images=6):
 
 # Store the outputs in a csv
 def run_model_and_store_outputs(model):
-    print("start")
+    print("start storing predicted values")
     was_training = model.training
     model.eval()
     df_output = pd.DataFrame(columns=['actual_score', 'rounded_score', 'predicted'])
@@ -229,15 +155,59 @@ def run_model_and_store_outputs(model):
         for sample_batch in dataloaders['val']:
             inputs = sample_batch['image'].to(device)
             scores = sample_batch['score']
-            actual_scores = sample_batch['actual_score'].data
+            actual_scores = sample_batch['actual_score']
             
             outputs = model(inputs)
             outputs = outputs.cpu()
-            #indexes = outputs.cpu().data.numpy().argmax()
             for j in range(inputs.size()[0]):
                 index_val = outputs[j].data.numpy().argmax()
-                df_output.loc[len(df_output.index)] = [actual_scores[j].item(), scores[j].item(), index_val]
-    name_of_csv_file = "./predictedVsActualScores_{}.csv".format(sys.argv[7])
+                df_output.loc[len(df_output.index)] = [actual_scores[j], scores[j], index_val]
+    name_of_csv_file = "./output_csvs/{}/predictedVsActualScores_{}.csv".format(sys.argv[2], sys.argv[5])
+    df_output.to_csv(name_of_csv_file)
+    print("done")
+
+# Store all the probability values in a csv
+def run_model_and_store_all_probabilities(model):
+    print("start storing probabilities")
+    was_training = model.training
+    model.eval()
+    df_output = pd.DataFrame(columns=['actual_score', 'rounded_score', 'predicted_probabilites'])
+
+    with torch.no_grad():
+        for sample_batch in dataloaders['val']:
+            inputs = sample_batch['image'].to(device)
+            scores = sample_batch['score']
+            actual_scores = sample_batch['actual_score']
+            
+            outputs = model(inputs)
+            p = torch.nn.functional.softmax(outputs, dim=1)
+            p = p.cpu()
+            for j in range(inputs.size()[0]):
+                df_output.loc[len(df_output.index)] = [actual_scores[j], scores[j], p[j]]
+    name_of_csv_file = "./output_csvs/{}/probabilitiesVsActualScores_{}.csv".format(sys.argv[2], sys.argv[5])
+    df_output.to_csv(name_of_csv_file)
+    print("done")
+
+def run_combined_model_and_store_outputs(model):
+    print("start storing predicted values")
+    was_training = model.training
+    model.eval()
+    df_output = pd.DataFrame(columns=['actual_score', 'rounded_score', 'predicted', 'predicted_probabilites'])
+
+    with torch.no_grad():
+        for sample_batch in dataloaders['val']:
+            inputs = sample_batch['image'].to(device)
+            scores = sample_batch['score']
+            actual_scores = sample_batch['actual_score']
+            
+            outputs = model(inputs)
+            outputs = outputs.cpu()
+            p = torch.nn.functional.softmax(outputs, dim=1)
+            p = p.cpu()
+            for j in range(inputs.size()[0]):
+                index_val = outputs[j].data.numpy().argmax()
+                df_output.loc[len(df_output.index)] = [actual_scores[j], scores[j], index_val, p[j]]
+    name_of_csv_file = "./output_csvs/{}/predictedVsActualScores_{}.csv".format(sys.argv[2], sys.argv[5])
     df_output.to_csv(name_of_csv_file)
     print("done")
 
@@ -245,35 +215,14 @@ def run_model_and_store_outputs(model):
 
 # Model Definition
 
-model_ft = resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)
+total_classes = transformed_image_datasets['train'].df['trueskill.score'].max() + 1
 
+model_ft = resnet50()
 num_ftrs = model_ft.fc.in_features
-
 model_ft.fc = nn.Linear(num_ftrs, total_classes)
 
-model_ft = model_ft.to(device)
+PATH = "./saved_models/{}".format(sys.argv[1])
+model_ft.load_state_dict(torch.load(PATH))
 
-criterion = nn.CrossEntropyLoss()
-
-# Observe that all parameters are being optimized
-optimizer_ft = optim.SGD(model_ft.parameters(), lr=0.01, momentum=0.9)
-
-# Decay LR by a factor of 0.3 every 10 epochs
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=10, gamma=0.3)
-
-
-
-# Model Training and Evaluation
-
-model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler, num_epochs)
-
-
-# Save Model State
-name_of_model_file = "./saved_models/{}".format(sys.argv[1])
-torch.save(model_ft.state_dict(), name_of_model_file)
-
-# Examples to demo
-
-#run_model_and_store_outputs(model_ft)
-
-#visualize_model(model_ft)
+model_ft.to(device)
+run_combined_model_and_store_outputs(model_ft)

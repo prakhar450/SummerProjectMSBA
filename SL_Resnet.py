@@ -36,8 +36,8 @@ num_epochs = int(sys.argv[4])
 num_workers = 0
 
 img_dir = '../images'
-image_score_df_train = '../{}_balanced_df_train.csv'.format(sys.argv[3])
-image_score_df_val = '../{}_balanced_df_valid.csv'.format(sys.argv[3])
+image_score_df_train = '../{}_image_score_table_train.csv'.format(sys.argv[3])
+image_score_df_val = '../{}_image_score_table_val.csv'.format(sys.argv[3])
 csv_paths = {'train': image_score_df_train, 'val': image_score_df_val}
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -227,10 +227,10 @@ def visualize_model(model, num_images=6):
 # Model Definition
 
 #model_ft = models.resnet34(weights='IMAGENET1K_V1')
-#pretrained = sys.argv[2]
+pretrained = sys.argv[2]
 #model_ft = models.resnet34(pretrained = pretrained)
 #model_ft = models.resnet50(pretrained = pretrained)
-model_ft = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)
+model_ft = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
 
 num_ftrs = model_ft.fc.in_features
 model_ft.fc = nn.Linear(num_ftrs, 1)
