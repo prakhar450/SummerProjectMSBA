@@ -140,6 +140,30 @@ print('Dataloaders OK')
 #test_loader
 
 
+
+
+
+# Define a custom model by inheriting nn.Module
+class CustomResNet(nn.Module):
+    def __init__(self, num_classes=36):
+        super(CustomResNet, self).__init__()
+        # Load pretrained ResNet-50
+        self.resnet = models.resnet50(pretrained=True)
+        # Modify the fully connected layer
+        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, num_classes)
+
+    def forward(self, x):
+        return self.resnet(x)
+
+# Instantiate the custom model
+num_classes = 36
+model = CustomResNet(num_classes)
+
+# Define loss function and optimizer
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+'''
 # # Residual Network Architecture
 
 # In[6]:
@@ -234,7 +258,7 @@ if USE_CUDA:
 criterion = nn.CrossEntropyLoss()  
 optimizer = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
-
+'''
 
 # # Training with ResNet
 
@@ -316,28 +340,6 @@ for epoch in range(1, NUM_EPOCHS+1):
     print(f'\nEpoch {epoch} validation results: Loss={test_loss[-1]} | Accuracy={test_accuracy[-1]}\n')
 
 
-    # Plot and save
-    plt.figure(figsize=(12, 8), num=1)
-    plt.clf()
-    plt.plot(epochs, train_loss, label='Train')
-    plt.plot(epochs, test_loss, label='Test')
-    plt.legend()
-    plt.grid()
-    plt.title('Cross entropy loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.savefig('outputs/01-loss-resnet.pdf')
-
-    plt.figure(figsize=(12, 8), num=2)
-    plt.clf()
-    plt.plot(epochs, train_accuracy, label='Train')
-    plt.plot(epochs, test_accuracy, label='Test')
-    plt.legend()
-    plt.grid()
-    plt.title('Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.savefig('outputs/02-accuracy-resnet.pdf')
 
 
 # # Results
