@@ -33,7 +33,7 @@ Arguments to this code
 1. model name to be saved
 2. folder name (beautiful etc)
 3. US/OECD
-4. full/small
+4. balanced/unbalanced
 5. batch size
 6. epochs
 7. output csv file name
@@ -51,8 +51,11 @@ num_workers = 0
 
 img_dir = '../images'
 
-image_score_df_train = '../country_flag_data/{}/{}_balanced_df_train_2_{}_{}.csv'.format(sys.argv[2], sys.argv[4], sys.argv[2], sys.argv[3])
-image_score_df_val = '../country_flag_data/{}/{}_balanced_df_valid_2_{}_{}.csv'.format(sys.argv[2], sys.argv[4], sys.argv[2], sys.argv[3])
+#image_score_df_train = '../country_flag_data/{}/{}_balanced_df_train_2_{}_{}.csv'.format(sys.argv[2], sys.argv[4], sys.argv[2], sys.argv[3])
+image_score_df_train = '../Dataset_New_Final/{}/full_{}_df_train_1_{}.csv'.format(sys.argv[2], sys.argv[4], sys.argv[3])
+
+#image_score_df_val = '../country_flag_data/{}/{}_balanced_df_valid_2_{}_{}.csv'.format(sys.argv[2], sys.argv[4], sys.argv[2], sys.argv[3])
+image_score_df_val = '../Dataset_New_Final/{}/full_unbalanced_df_valid_1_{}.csv'.format(sys.argv[2], sys.argv[3])
 
 csv_paths = {'train': image_score_df_train, 'val': image_score_df_val}
 
@@ -74,10 +77,10 @@ class CustomDataset(Dataset):
         if torch.is_tensor(index):
             index = index.tolist()
 
-        img_path = os.path.join(self.img_dir, self.df.iloc[index, 1])
+        img_path = os.path.join(self.img_dir, self.df.iloc[index, 0])
         image = io.imread(img_path)
-        score = self.df.iloc[index, 2]
-        actual_score = self.df.iloc[index, 4]
+        score = self.df.iloc[index, 1]
+        actual_score = self.df.iloc[index, 5]
 
         sample = {'image': image, 'score': score, 'actual_score': actual_score}
 
@@ -137,7 +140,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs):
             print('-' * 10)
 
             # Each epoch has a training and validation phase
-            for phase in ['train', 'val']:
+            for phase in ['train','val']:
                 if phase == 'train':
                     model.train()  # Set model to training mode
                 else:
