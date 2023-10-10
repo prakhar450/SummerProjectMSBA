@@ -16,7 +16,6 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 from PIL import Image
-from network import Net
 from torch.utils.data import DataLoader, Dataset
 from torch.autograd import Variable
 if not os.path.exists('./outputs'):
@@ -32,7 +31,7 @@ if not os.path.exists('./outputs'):
 # This will make the calculations happen faster
 USE_CUDA = torch.cuda.is_available()
 
-DATASET_PATH = './images'
+DATASET_PATH = '../images'
 
 BATCH_SIZE = 64 # Number of images that are used for calculating gradients at each step
 
@@ -127,16 +126,16 @@ data_transforms = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
-
-train_dataset = datasets.ImageFolder(os.path.join(DATASET_PATH, 'train'), data_transforms)
-train_loader = DataLoader(train_dataset, BATCH_SIZE, shuffle=True, num_workers=2, pin_memory=True)
-
-
-test_dataset = datasets.ImageFolder(os.path.join(DATASET_PATH, 'test'), data_transforms)
-test_loader = DataLoader(test_dataset, BATCH_SIZE, shuffle=False, num_workers=2, pin_memory=True)
-
-class_names = train_dataset.classes
 '''
+#train_dataset = datasets.ImageFolder(os.path.join(DATASET_PATH, 'train'), data_transforms)
+train_loader = DataLoader(transformed_image_datasets['train'], BATCH_SIZE, shuffle=True, num_workers=2, pin_memory=True)
+
+
+#test_dataset = datasets.ImageFolder(os.path.join(DATASET_PATH, 'test'), data_transforms)
+test_loader = DataLoader(transformed_image_datasets['val'], BATCH_SIZE, shuffle=False, num_workers=2, pin_memory=True)
+
+
+
 print('Dataloaders OK')
 #test_loader
 
@@ -261,7 +260,7 @@ for epoch in range(1, NUM_EPOCHS+1):
     
     model.train()  # Put the network into training mode
     
-    for i, (inputs, labels) in enumerate(dataloaders['train']):
+    for i, (inputs, labels) in enumerate(train_loader):
         if USE_CUDA:
             inputs = inputs.cuda()
             labels = labels.cuda()        
@@ -293,7 +292,7 @@ for epoch in range(1, NUM_EPOCHS+1):
     
     model.eval()  # Put the network into evaluation mode
     
-    for i, (inputs, labels) in enumerate(dataloaders['val']):
+    for i, (inputs, labels) in enumerate(test_loader):
 
         if USE_CUDA:
             inputs = inputs.cuda()
