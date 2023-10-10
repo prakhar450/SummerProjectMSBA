@@ -103,6 +103,24 @@ data_transforms = {
         ])
 }
 
+import tensorflow as tf
+from tensorflow.keras.applications import ResNet50
+import os
+import numpy as np
+from keras.preprocessing.image import ImageDataGenerator
+
+
+Train_Datagen = ImageDataGenerator(dtype = 'float32', preprocessing_function=tf.keras.applications.resnet.preprocess_input)
+Val_Datagen = ImageDataGenerator(dtype = 'float32', preprocessing_function=tf.keras.applications.resnet.preprocess_input)
+
+train_gen = Train_Datagen.flow_from_directory(directory = train_dir, target_size = (150,150), 
+                                       batch_size = batch_size, class_mode = 'binary')
+
+val_gen = Val_Datagen.flow_from_directory(directory = validation_dir, target_size = (150,150), 
+                                       batch_size = batch_size, class_mode = 'binary')
+
+epochs = 15
+
 transformed_image_datasets = {x: CustomDataset(csv_path=csv_paths[x], img_dir=img_dir, transform=data_transforms[x]) 
                               for x in ['train', 'val'] }
 
@@ -246,14 +264,53 @@ def run_model_and_store_outputs(model):
 
 
 
-# Model Definition
+import torch
+import torch.nn as nn
+import torchvision.models as models
 
-model_ft = resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)
+# Define a custom model by inheriting nn.Module
+class CustomModel(nn.Module):
+    def __init__(self, total_classes):
+        super(CustomModel, self).__init__()
+        # Load pre-trained ResNet-50
+        self.conv_base = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)
+        
+        # Remove the fully connected layers
+        self.conv_base = nn.Sequential(*list(self.conv_base.children())[:-2])
+        
+        # Freeze layers (equivalent to setting trainable to False in Keras)
+        for param in self.conv_base.parameters():
+            param.requires_grad = False
+        
+        # Add custom fully connected layers
+        self.fc1 = nn.Linear(2048, 256)
+        self.dropout = nn.Dropout(0.5)
+        self.fc2 = nn.Linear(256, total_classes)
+        
+    def forward(self, x):
+        x = self.conv_base(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc1(x)
+        x = nn.functional.relu(x)
+        x = self.dropout(x)
+        x = self.fc2(x)
+        x = nn.functional.sigmoid(x)  # Sigmoid since the original model used sigmoid
+        
+        return x
 
-num_ftrs = model_ft.fc.in_features
+# Instantiate the model
+total_classes = 10  # Update with your total number of classes
+model_ft = CustomModel(total_classes)
 
-model_ft.fc = nn.Linear(num_ftrs, total_classes)
 
+
+
+#model_ft = resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)
+
+#num_ftrs = model_ft.fc.in_features
+
+#model_ft.fc = nn.Linear(num_ftrs, total_classes)
+#
 model_ft = model_ft.to(device)
 
 criterion = nn.CrossEntropyLoss()
