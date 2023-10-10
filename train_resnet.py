@@ -260,13 +260,13 @@ for epoch in range(1, NUM_EPOCHS+1):
     
     model.train()  # Put the network into training mode
     
-    for i, (inputs, labels) in enumerate(train_loader):
+    for i, sample_batch in enumerate(train_loader):
         if USE_CUDA:
-            inputs = inputs.cuda()
-            labels = labels.cuda()        
+            inputs = sample_batch['image'].cuda()
+            scores = sample_batch['score'].cuda()        
             
         outputs = model(inputs)
-        loss = criterion(outputs, labels)
+        loss = criterion(outputs, scores)
         iter_loss += loss.item()  # Accumulate the loss
         optimizer.zero_grad() # Clear off the gradient in (w = w - gradient)
         loss.backward()   # Backpropagation 
@@ -274,7 +274,7 @@ for epoch in range(1, NUM_EPOCHS+1):
         
         # Record the correct predictions for training data 
         _, predicted = torch.max(outputs, 1)
-        correct += (predicted == labels).sum()
+        correct += (predicted == scores).sum()
         iterations += 1
         
     scheduler.step()
@@ -292,18 +292,18 @@ for epoch in range(1, NUM_EPOCHS+1):
     
     model.eval()  # Put the network into evaluation mode
     
-    for i, (inputs, labels) in enumerate(test_loader):
+    for i, sample_batch in enumerate(train_loader):
 
         if USE_CUDA:
             inputs = inputs.cuda()
-            labels = labels.cuda()
+            scores = sample_batch['score'].cuda()
         
         outputs = model(inputs)     
-        loss = criterion(outputs, labels) # Calculate the loss
+        loss = criterion(outputs, scores) # Calculate the loss
         testing_loss += loss.item()
         # Record the correct predictions for training data
         _, predicted = torch.max(outputs, 1)
-        correct += (predicted == labels).sum()
+        correct += (predicted == scores).sum()
         
         iterations += 1
 
