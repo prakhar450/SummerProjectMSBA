@@ -94,15 +94,15 @@ data_transforms = {
     'train' : transforms.Compose([
         transforms.ToPILImage(),
         transforms.ToTensor(),
-        transforms.Resize((256,256)),
-        transforms.CenterCrop(224),
+        transforms.Resize((128,128)),
+        transforms.CenterCrop(126),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
     'val' : transforms.Compose([
         transforms.ToPILImage(),
         transforms.ToTensor(),
-        transforms.Resize((256,256)),
-        transforms.CenterCrop(224),
+        transforms.Resize((128,128)),
+        transforms.CenterCrop(126),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 }
@@ -187,7 +187,8 @@ class ResNet(nn.Module):
         self.layer2 = self.make_layer(block, 32, layers[1], 2)
         self.layer3 = self.make_layer(block, 64, layers[2], 2)
         self.avg_pool = nn.AvgPool2d(16)
-        self.fc = nn.Linear(576, num_classes)
+        self.fc1 = nn.Linear(256, 47628)
+        self.fc = nn.Linear(256, num_classes)
         
     def make_layer(self, block, out_channels, blocks, stride=1):
         downsample = None
