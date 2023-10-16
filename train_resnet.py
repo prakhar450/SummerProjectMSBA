@@ -18,6 +18,7 @@ from tqdm import tqdm
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torch.autograd import Variable
+from tempfile import TemporaryDirectory
 if not os.path.exists('./outputs'):
     os.mkdir('./outputs')
 
@@ -106,9 +107,9 @@ data_transforms_1 = transforms.Compose([
 from torchvision import datasets, models, transforms
 
 data_transforms_2 = transforms.Compose([
-        transforms.Resize(256, 256),
-        transforms.CenterCrop(224)
         transforms.ToTensor(),
+        transforms.Resize((256, 256)),
+        transforms.CenterCrop(224),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
@@ -248,7 +249,7 @@ test_accuracy = []
 epochs = []
 
 with TemporaryDirectory() as tempdir:
-    best_models_params_path = os.path.join(tempdir, 'best_model_params.pt')
+    best_model_params_path = os.path.join(tempdir, 'best_model_params.pt')
     torch.save(model.state_dict(), best_model_params_path)
     best_acc = 0.0
     for epoch in range(1, NUM_EPOCHS+1):
