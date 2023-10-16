@@ -22,7 +22,7 @@ read -p 'batch size: ' bsize
 read -p 'number of epochs: ' nepoch
 read -p 'suffix for output csv (predictedVsActualScores_suffix): ' outputcsvsuffix
 
-nohup python3 -u Classification_SL_Resnet.py $model_name $fname $cflag $data_size $bsize $nepoch $outputcsvsuffix > output_csvs/oct9/$fname/"$data_size""_output.txt" &
+nohup python3 -u Classification_SL_Resnet.py $model_name $fname $cflag $data_size $bsize $nepoch $outputcsvsuffix > output_csvs/oct15/$fname/"$data_size""_output.txt" &
 
 #python3 -u Classification_SL_Resnet.py abcde.pt false small 5 32 1 test2 
 #nohup python3 -u Classification_SL_Resnet.py abcde.pt false small 10101010101010101010 32 1 test2 &

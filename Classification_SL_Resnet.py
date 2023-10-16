@@ -50,12 +50,14 @@ num_epochs = int(sys.argv[6])
 num_workers = 0
 
 img_dir = '../images'
-
 #image_score_df_train = '../country_flag_data/{}/{}_balanced_df_train_2_{}_{}.csv'.format(sys.argv[2], sys.argv[4], sys.argv[2], sys.argv[3])
-image_score_df_train = '../Dataset_New_Final/{}/full_{}_df_train_1_{}.csv'.format(sys.argv[2], sys.argv[4], sys.argv[3])
+#image_score_df_train = '../Dataset_New_Final/{}/full_{}_df_train_1_{}.csv'.format(sys.argv[2], sys.argv[4], sys.argv[3])
+#image_score_df_train = '../Dataset_wo_vip/{}/full_{}_df_train_1_{}.csv'.format(sys.argv[2], sys.argv[4], sys.argv[3])
+image_score_df_train = '../Dataset_wo_vip/safe/full_balanced_df_train_1_US.csv'
 
 #image_score_df_val = '../country_flag_data/{}/{}_balanced_df_valid_2_{}_{}.csv'.format(sys.argv[2], sys.argv[4], sys.argv[2], sys.argv[3])
-image_score_df_val = '../Dataset_New_Final/{}/full_unbalanced_df_valid_1_{}.csv'.format(sys.argv[2], sys.argv[3])
+#image_score_df_val = '../Dataset_New_Final/{}/full_unbalanced_df_valid_1_{}.csv'.format(sys.argv[2], sys.argv[3])
+image_score_df_val = '../Dataset_wo_vip/{}/full_unbalanced_df_valid_1_{}.csv'.format(sys.argv[2], sys.argv[3])
 
 csv_paths = {'train': image_score_df_train, 'val': image_score_df_val}
 
@@ -90,38 +92,45 @@ class CustomDataset(Dataset):
         return sample
 
 # Data Loaders
-data_transforms = {
-    'train' : transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Resize((256,256)),
+data_transforms_1 = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize((256, 256)),
         transforms.CenterCrop(224),
-        ]),
-    'val' : transforms.Compose([
+        #transforms.RandomResizedCrop((224, 224)),
+        #transforms.RandomHorizontalFlip(),
+        #transforms.RandomVerticalFlip(),
+        #transforms.RandomRotation(degrees=30),
+        transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+        transforms.GaussianBlur(kernel_size=3),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+
+data_transforms_2 = transforms.Compose([
         transforms.ToTensor(),
         transforms.Resize((256,256)),
         transforms.CenterCrop(224),
         ])
-}
 
-import tensorflow as tf
-from tensorflow.keras.applications import ResNet50
-import os
-import numpy as np
-from keras.preprocessing.image import ImageDataGenerator
+#import tensorflow as tf
+#from tensorflow.keras.applications import ResNet50
+#import os
+#import numpy as np
+#from keras.preprocessing.image import ImageDataGenerator
+#
+#
+#Train_Datagen = ImageDataGenerator(dtype = 'float32', preprocessing_function=tf.keras.applications.resnet.preprocess_input)
+#Val_Datagen = ImageDataGenerator(dtype = 'float32', preprocessing_function=tf.keras.applications.resnet.preprocess_input)
+#
+#train_gen = Train_Datagen.flow_from_directory(directory = train_dir, target_size = (150,150), 
+#                                       batch_size = batch_size, class_mode = 'binary')
+#
+#val_gen = Val_Datagen.flow_from_directory(directory = validation_dir, target_size = (150,150), 
+#                                       batch_size = batch_size, class_mode = 'binary')
+#
+#epochs = 15
 
-
-Train_Datagen = ImageDataGenerator(dtype = 'float32', preprocessing_function=tf.keras.applications.resnet.preprocess_input)
-Val_Datagen = ImageDataGenerator(dtype = 'float32', preprocessing_function=tf.keras.applications.resnet.preprocess_input)
-
-train_gen = Train_Datagen.flow_from_directory(directory = train_dir, target_size = (150,150), 
-                                       batch_size = batch_size, class_mode = 'binary')
-
-val_gen = Val_Datagen.flow_from_directory(directory = validation_dir, target_size = (150,150), 
-                                       batch_size = batch_size, class_mode = 'binary')
-
-epochs = 15
-
-transformed_image_datasets = {x: CustomDataset(csv_path=csv_paths[x], img_dir=img_dir, transform=data_transforms[x]) 
+transformed_image_datasets = {x: CustomDataset(csv_path=csv_paths[x], img_dir=img_dir, transform=data_transforms_2) 
                               for x in ['train', 'val'] }
 
 dataloaders = { x: DataLoader(transformed_image_datasets[x], batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -299,18 +308,19 @@ class CustomModel(nn.Module):
         return x
 
 # Instantiate the model
-total_classes = 10  # Update with your total number of classes
-model_ft = CustomModel(total_classes)
-
-
+#total_classes = 10  # Update with your total number of classes
+#model_ft = CustomModel(total_classes)
+#
+#
 
 
 #model_ft = resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)
+model_ft = resnet50()
 
-#num_ftrs = model_ft.fc.in_features
+num_ftrs = model_ft.fc.in_features
 
-#model_ft.fc = nn.Linear(num_ftrs, total_classes)
-#
+model_ft.fc = nn.Linear(num_ftrs, total_classes)
+
 model_ft = model_ft.to(device)
 
 criterion = nn.CrossEntropyLoss()
@@ -318,6 +328,14 @@ criterion = nn.CrossEntropyLoss()
 # Observe that all parameters are being optimized
 optimizer_ft = optim.SGD(model_ft.parameters(), lr=0.01, momentum=0.9)
 
+LEARNING_RATE = 0.001 # Controls the step size
+MOMENTUM = 0.9 # Momentum for the gradient descent
+WEIGHT_DECAY = 0.0001
+num_workers = 2
+beta1 = 0.9
+beta2 = 0.999
+epsilon = 1e-8
+optimizer_ft = torch.optim.Adam(model_ft.parameters(), lr=LEARNING_RATE, betas=(beta1, beta2), eps=epsilon, weight_decay=WEIGHT_DECAY)
 # Decay LR by a factor of 0.3 every 10 epochs
 exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=10, gamma=0.3)
 

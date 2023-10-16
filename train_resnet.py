@@ -23,7 +23,8 @@ if not os.path.exists('./outputs'):
 
 
 # In[2]:
-
+import warnings
+warnings.filterwarnings("ignore")
 
 # Global parameters
 
@@ -33,23 +34,24 @@ USE_CUDA = torch.cuda.is_available()
 
 DATASET_PATH = '../images'
 
-BATCH_SIZE = 64 # Number of images that are used for calculating gradients at each step
+BATCH_SIZE = 32 # Number of images that are used for calculating gradients at each step
 
 NUM_EPOCHS = 25 # Number of times we will go through all the training images. Do not go over 25
 
 LEARNING_RATE = 0.001 # Controls the step size
 MOMENTUM = 0.9 # Momentum for the gradient descent
-WEIGHT_DECAY = 0.0005
+WEIGHT_DECAY = 0.001
 num_workers = 2
-
+beta1 = 0.9
+beta2 = 0.999
+epsilon = 1e-8
 
 # In[ ]:
 
+image_score_df_train = '../Dataset_wo_vip/safe/full_unbalanced_df_train_1_US.csv'
 
-image_score_df_train = '../Dataset_New_Final/testing/images_score_train_1_safe.csv'
 
-
-image_score_df_val = '../Dataset_New_Final/testing/images_score_valid_1_safe.csv'
+image_score_df_val = '../Dataset_wo_vip/safe/full_unbalanced_df_valid_1_US.csv'
 
 csv_paths = {'train': image_score_df_train, 'val': image_score_df_val}
 
@@ -90,27 +92,29 @@ class CustomDataset(Dataset):
 # Create datasets and data loaders
 # Transformations
 
-data_transforms = {
-    'train' : transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.ToTensor(),
-        transforms.Resize((128,128)),
-        transforms.CenterCrop(126),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ]),
-    'val' : transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.ToTensor(),
-        transforms.Resize((128,128)),
-        transforms.CenterCrop(126),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
-}
+data_transforms_1 = transforms.Compose([
+    transforms.RandomResizedCrop((224, 224)),
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomVerticalFlip(),
+    transforms.RandomRotation(degrees=30),
+    transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+    transforms.GaussianBlur(kernel_size=3),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
 
-transformed_image_datasets = {x: CustomDataset(csv_path=csv_paths[x], img_dir=DATASET_PATH, transform=data_transforms[x]) 
+from torchvision import datasets, models, transforms
+
+data_transforms_2 = transforms.Compose([
+        transforms.Resize(224),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+
+transformed_image_datasets = {x: CustomDataset(csv_path=csv_paths[x], img_dir=DATASET_PATH, transform=data_transforms_2) 
                               for x in ['train', 'val'] }
 
-dataloaders = { x: DataLoader(transformed_image_datasets[x], batch_size=BATCH_SIZE, shuffle=True, num_workers=num_workers, pin_memory=True)
+dataloaders = { x: DataLoader(transformed_image_datasets[x], batch_size=BATCH_SIZE, shuffle=True, num_workers=num_workers, pin_memory=True, drop_last=True)
                for x in ['train', 'val'] }
 
 dataset_sizes = {x: len(transformed_image_datasets[x]) for x in ['train', 'val']}
@@ -119,20 +123,12 @@ total_classes = transformed_image_datasets['train'].df['trueskill.score'].max() 
 
 print(dataset_sizes)
 
-'''
-from torchvision import datasets, models, transforms
-data_transforms = transforms.Compose([
-        transforms.Resize(64),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
-'''
 #train_dataset = datasets.ImageFolder(os.path.join(DATASET_PATH, 'train'), data_transforms)
-train_loader = DataLoader(transformed_image_datasets['train'], BATCH_SIZE, shuffle=True, num_workers=2, pin_memory=True)
+train_loader = DataLoader(transformed_image_datasets['train'], BATCH_SIZE, shuffle=True, num_workers=2, pin_memory=True, drop_last=True)
 
 
 #test_dataset = datasets.ImageFolder(os.path.join(DATASET_PATH, 'test'), data_transforms)
-test_loader = DataLoader(transformed_image_datasets['val'], BATCH_SIZE, shuffle=False, num_workers=2, pin_memory=True)
+test_loader = DataLoader(transformed_image_datasets['val'], BATCH_SIZE, shuffle=False, num_workers=2, pin_memory=True, drop_last=True)
 
 
 
@@ -142,28 +138,6 @@ print('Dataloaders OK')
 
 
 
-
-# Define a custom model by inheriting nn.Module
-class CustomResNet(nn.Module):
-    def __init__(self, num_classes=36):
-        super(CustomResNet, self).__init__()
-        # Load pretrained ResNet-50
-        self.resnet = models.resnet50(pretrained=True)
-        # Modify the fully connected layer
-        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, num_classes)
-
-    def forward(self, x):
-        return self.resnet(x)
-
-# Instantiate the custom model
-num_classes = 36
-model = CustomResNet(num_classes)
-
-# Define loss function and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
-'''
 # # Residual Network Architecture
 
 # In[6]:
@@ -211,8 +185,7 @@ class ResNet(nn.Module):
         self.layer2 = self.make_layer(block, 32, layers[1], 2)
         self.layer3 = self.make_layer(block, 64, layers[2], 2)
         self.avg_pool = nn.AvgPool2d(16)
-        self.fc1 = nn.Linear(256, 47628)
-        self.fc = nn.Linear(256, num_classes)
+        self.fc = nn.Linear(576, num_classes)
         
     def make_layer(self, block, out_channels, blocks, stride=1):
         downsample = None
@@ -257,8 +230,9 @@ if USE_CUDA:
 
 criterion = nn.CrossEntropyLoss()  
 optimizer = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
+optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, betas=(beta1, beta2), eps=epsilon, weight_decay=WEIGHT_DECAY)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
-'''
+
 
 # # Training with ResNet
 
