@@ -93,11 +93,11 @@ class CustomDataset(Dataset):
 # Create datasets and data loaders
 # Transformations
 data_transforms_1 = transforms.Compose([
+        transforms.Resize(256, 256),
+        transforms.CenterCrop(224)
         transforms.ToTensor(),
-        transforms.Resize((256,256)),
-        transforms.CenterCrop(224),
-        ])
-
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
 data_transforms_2 = transforms.Compose([
         transforms.ToPILImage(),
         transforms.Resize((256, 256)),
@@ -125,14 +125,6 @@ total_classes = transformed_image_datasets['train'].df['trueskill.score'].max() 
 
 print(dataset_sizes)
 
-'''
-from torchvision import datasets, models, transforms
-data_transforms = transforms.Compose([
-        transforms.Resize(64),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
-'''
 #train_dataset = datasets.ImageFolder(os.path.join(DATASET_PATH, 'train'), data_transforms)
 train_loader = DataLoader(transformed_image_datasets['train'], BATCH_SIZE, shuffle=True, num_workers=2, pin_memory=True, drop_last=True)
 

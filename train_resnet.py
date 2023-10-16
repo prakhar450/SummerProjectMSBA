@@ -106,7 +106,8 @@ data_transforms_1 = transforms.Compose([
 from torchvision import datasets, models, transforms
 
 data_transforms_2 = transforms.Compose([
-        transforms.Resize(224),
+        transforms.Resize(256, 256),
+        transforms.CenterCrop(224)
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
@@ -246,75 +247,87 @@ test_loss = []
 test_accuracy = []
 epochs = []
 
-for epoch in range(1, NUM_EPOCHS+1):
-    print(f'\n\nRunning epoch {epoch} of {NUM_EPOCHS}...\n')
-    epochs.append(epoch)
-
-    #-------------------------Train-------------------------
+with TemporaryDirectory() as tempdir:
+    best_models_params_path = os.path.join(tempdir, 'best_model_params.pt')
+    torch.save(model.state_dict(), best_model_params_path)
+    best_acc = 0.0
+    for epoch in range(1, NUM_EPOCHS+1):
+        print(f'\n\nRunning epoch {epoch} of {NUM_EPOCHS}...\n')
+        epochs.append(epoch)
     
-    #Reset these below variables to 0 at the begining of every epoch
-    correct = 0
-    iterations = 0
-    iter_loss = 0.0
-    
-    model.train()  # Put the network into training mode
-    
-    for i, sample_batch in enumerate(train_loader):
-        if USE_CUDA:
-            inputs = sample_batch['image'].cuda()
-            scores = sample_batch['score'].cuda()        
+        #-------------------------Train-------------------------
+        
+        #Reset these below variables to 0 at the begining of every epoch
+        correct = 0
+        iterations = 0
+        iter_loss = 0.0
+        
+        model.train()  # Put the network into training mode
+        
+        for i, sample_batch in enumerate(train_loader):
+            if USE_CUDA:
+                inputs = sample_batch['image'].cuda()
+                scores = sample_batch['score'].cuda()        
+                
+            outputs = model(inputs)
+            loss = criterion(outputs, scores)
+            iter_loss += loss.item()  # Accumulate the loss
+            optimizer.zero_grad() # Clear off the gradient in (w = w - gradient)
+            loss.backward()   # Backpropagation 
+            optimizer.step()  # Update the weights
             
-        outputs = model(inputs)
-        loss = criterion(outputs, scores)
-        iter_loss += loss.item()  # Accumulate the loss
-        optimizer.zero_grad() # Clear off the gradient in (w = w - gradient)
-        loss.backward()   # Backpropagation 
-        optimizer.step()  # Update the weights
+            # Record the correct predictions for training data 
+            _, predicted = torch.max(outputs, 1)
+            correct += (predicted == scores).sum()
+            iterations += 1
+            
+        scheduler.step()
+            
+        # Record the training loss
+        train_loss.append(iter_loss/iterations)
+        # Record the training accuracy
+        train_accuracy.append((100 * correct / dataset_sizes['train']))   
+         
+        #-------------------------Test--------------------------
         
-        # Record the correct predictions for training data 
-        _, predicted = torch.max(outputs, 1)
-        correct += (predicted == scores).sum()
-        iterations += 1
+        correct = 0
+        iterations = 0
+        testing_loss = 0.0
         
-    scheduler.step()
+        model.eval()  # Put the network into evaluation mode
         
-    # Record the training loss
-    train_loss.append(iter_loss/iterations)
-    # Record the training accuracy
-    train_accuracy.append((100 * correct / dataset_sizes['train']))   
-     
-    #-------------------------Test--------------------------
+        for i, sample_batch in enumerate(train_loader):
     
-    correct = 0
-    iterations = 0
-    testing_loss = 0.0
+            if USE_CUDA:
+                inputs = inputs.cuda()
+                scores = sample_batch['score'].cuda()
+            
+            outputs = model(inputs)     
+            loss = criterion(outputs, scores) # Calculate the loss
+            testing_loss += loss.item()
+            # Record the correct predictions for training data
+            _, predicted = torch.max(outputs, 1)
+            correct += (predicted == scores).sum()
+            
+            iterations += 1
     
-    model.eval()  # Put the network into evaluation mode
-    
-    for i, sample_batch in enumerate(train_loader):
+        # Record the Testing loss
+        test_loss.append(testing_loss/iterations)
+        # Record the Testing accuracy
+        test_accuracy.append((100 * correct / dataset_sizes['val']))
 
-        if USE_CUDA:
-            inputs = inputs.cuda()
-            scores = sample_batch['score'].cuda()
+        if test_accuracy[-1] > best_acc:
+            best_acc = test_accuracy[-1]
+            print(f'\nUpdating best accuracy model with accuracy {test_accuracy[-1]}\n')
+            torch.save(model.state_dict(), best_model_params_path)    
         
-        outputs = model(inputs)     
-        loss = criterion(outputs, scores) # Calculate the loss
-        testing_loss += loss.item()
-        # Record the correct predictions for training data
-        _, predicted = torch.max(outputs, 1)
-        correct += (predicted == scores).sum()
-        
-        iterations += 1
+        print(f'\nEpoch {epoch} validation results: Loss={test_loss[-1]} | Accuracy={test_accuracy[-1]}\n')
 
-    # Record the Testing loss
-    test_loss.append(testing_loss/iterations)
-    # Record the Testing accuracy
-    test_accuracy.append((100 * correct / dataset_sizes['val']))
-   
-    print(f'\nEpoch {epoch} validation results: Loss={test_loss[-1]} | Accuracy={test_accuracy[-1]}\n')
+    model.load_state_dict(torch.load(best_model_params_path))
 
 
-
+name_of_model_file = "./saved_models/oct16/unbalanced_custom_resnet50.pt"
+torch.save(model.state_dict(), name_of_model_file)
 
 # # Results
 
