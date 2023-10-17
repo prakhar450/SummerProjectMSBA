@@ -37,7 +37,7 @@ DATASET_PATH = '../images'
 
 BATCH_SIZE = 32 # Number of images that are used for calculating gradients at each step
 
-NUM_EPOCHS = 25 # Number of times we will go through all the training images. Do not go over 25
+NUM_EPOCHS = 12 # Number of times we will go through all the training images. Do not go over 25
 
 LEARNING_RATE = 0.001 # Controls the step size
 MOMENTUM = 0.9 # Momentum for the gradient descent
@@ -297,7 +297,7 @@ with TemporaryDirectory() as tempdir:
         
         model.eval()  # Put the network into evaluation mode
         
-        for i, sample_batch in enumerate(train_loader):
+        for i, sample_batch in enumerate(test_loader):
     
             if USE_CUDA:
                 inputs = inputs.cuda()
