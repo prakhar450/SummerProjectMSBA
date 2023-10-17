@@ -42,12 +42,12 @@ Arguments to this code
 
 np.random.seed(100)
 num_workers = 0
-batch_size = int(sys.argv[6])
+batch_size = 32
 
 img_dir = '../images'
 
-image_score_df_train = '../country_flag_data/{}/{}_balanced_df_train_2_{}_{}.csv'.format(sys.argv[2], sys.argv[4], sys.argv[2], sys.argv[3])
-image_score_df_val = '../country_flag_data/{}/{}_balanced_df_valid_2_{}_{}.csv'.format(sys.argv[2], sys.argv[4], sys.argv[2], sys.argv[3])
+image_score_df_train = '../Dataset_wo_vip/safe/full_balanced_df_train_1_US.csv'
+image_score_df_val = '../Dataset_wo_vip/safe/full_unbalanced_df_valid_1_US.csv'
 
 csv_paths = {'train': image_score_df_train, 'val': image_score_df_val}
 
@@ -162,7 +162,7 @@ def run_model_and_store_outputs(model):
             for j in range(inputs.size()[0]):
                 index_val = outputs[j].data.numpy().argmax()
                 df_output.loc[len(df_output.index)] = [actual_scores[j], scores[j], index_val]
-    name_of_csv_file = "./output_csvs/{}/predictedVsActualScores_{}.csv".format(sys.argv[2], sys.argv[5])
+    name_of_csv_file = "../SummerProjectMSBA/outputs/safe/predictedVsActualScores_US.csv"
     df_output.to_csv(name_of_csv_file)
     print("done")
 
@@ -184,7 +184,7 @@ def run_model_and_store_all_probabilities(model):
             p = p.cpu()
             for j in range(inputs.size()[0]):
                 df_output.loc[len(df_output.index)] = [actual_scores[j], scores[j], p[j]]
-    name_of_csv_file = "./output_csvs/{}/probabilitiesVsActualScores_{}.csv".format(sys.argv[2], sys.argv[5])
+    name_of_csv_file = "../SummerProjectMSBA/outputs/safe/probabilitiesVsActualScores_US.csv"
     df_output.to_csv(name_of_csv_file)
     print("done")
 
@@ -207,7 +207,7 @@ def run_combined_model_and_store_outputs(model):
             for j in range(inputs.size()[0]):
                 index_val = outputs[j].data.numpy().argmax()
                 df_output.loc[len(df_output.index)] = [actual_scores[j], scores[j], index_val, p[j]]
-    name_of_csv_file = "./output_csvs/{}/predictedVsActualScores_{}.csv".format(sys.argv[2], sys.argv[5])
+    name_of_csv_file = "../SummerProjectMSBA/outputs/safe/predictedVsActualScores_US.csv"
     df_output.to_csv(name_of_csv_file)
     print("done")
 
