@@ -69,7 +69,7 @@ training_step = TrainModel(model, criterion, optimizer, exp_lr_scheduler, num_ep
 
 trained_model = training_step.train_model()
 
-trained_model_file = "./models/{}".format(sys.argv[1])
+trained_model_file = "./saved_models/{}".format(sys.argv[1])
 torch.save(trained_model.state_dict(), trained_model_file)
 
 
