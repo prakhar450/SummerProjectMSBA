@@ -20,11 +20,19 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
+''' 
+User Input Required below:
+For model_name, choose between "resnet50", "alexnetSVM"
+Input batch_size and num_epochs
+Change other params as required
+'''
+
+trained_model_file = "./saved_models/{}".format(sys.argv[1])
+model_name = "alexnetSVM"
 batch_size = 16
 num_epochs = 10
 num_workers = 1
 total_classes = 36
-model_name = "resnet50"
 criterion = nn.CrossEntropyLoss()
 optimizer_name = "Adam"
 learning_rate = 0.01
@@ -73,7 +81,6 @@ training_step = TrainModel(model, criterion, optimizer, exp_lr_scheduler, num_ep
 
 trained_model = training_step.trainModel()
 
-trained_model_file = "./saved_models/{}".format(sys.argv[1])
 torch.save(trained_model.state_dict(), trained_model_file)
 
 
