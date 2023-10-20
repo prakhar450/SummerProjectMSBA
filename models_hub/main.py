@@ -28,7 +28,7 @@ Change other params as required
 '''
 
 trained_model_file = "./saved_models/{}".format(sys.argv[1])
-model_name = "alexnetSVM"
+model_name = sys.argv[2]
 batch_size = 16
 num_epochs = 10
 num_workers = 1
@@ -64,21 +64,24 @@ print(dataset_sizes)
 
 custom_model = CustomModel(model_name=model_name, total_classes=total_classes).retrieveModel()
 print(custom_model)
-model = custom_model['model']
-preprocess = custom_model['preprocess']
+model = custom_model.get_model()
 
-model = model.to(device)
+optimizer = None
+exp_lr_scheduler = None
+if model_name == 'resnet50':
+    if optimizer_name == "Adam":   
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
-if optimizer_name == "Adam":
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    if optimizer_name == "SGD":
+        optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
 
-if optimizer_name == "SGD":
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size, gamma)
+    training_step = TrainModel(model = model, criterion=criterion, optimizer=optimizer, exp_lr_scheduler=exp_lr_scheduler, num_epochs=num_epochs, train_loader=train_loader, test_loader=test_loader, device=device, dataset_sizes=dataset_sizes)
+elif model_name == 'alexnetSVM':
+    training_step = TrainModel(model = custom_model, criterion=criterion, optimizer=optimizer, exp_lr_scheduler=exp_lr_scheduler, num_epochs=num_epochs, train_loader=train_loader, test_loader=test_loader, device=device, dataset_sizes=dataset_sizes)
 
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size, gamma)
 
-training_step = TrainModel(model, criterion, optimizer, exp_lr_scheduler, num_epochs, preprocess, train_loader, test_loader, device, dataset_sizes)
-
+    
 trained_model = training_step.trainModel()
 
 torch.save(trained_model.state_dict(), trained_model_file)

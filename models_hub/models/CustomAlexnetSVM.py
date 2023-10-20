@@ -1,4 +1,5 @@
 import torch.nn as nn
+import os
 import time
 import torch
 import torchvision.models as models
@@ -21,56 +22,56 @@ from tempfile import TemporaryDirectory
 '''
 
 class CustomAlexnetSVM():
-	def __init__(self, total_classes):
+    def __init__(self, total_classes):
         self.total_classes = total_classes
         self.model = None
         self.weights = None
         self.preprocess = None
+        self.classifier = {}
     
-    def createModel(self):
+    def create_model(self):
         self.model = models.alexnet(weights='DEFAULT')
         self.model = nn.Sequential(*list(self.model.children())[:-1])
         self.model.eval()
 
         self.weights = models.AlexNet_Weights.IMAGENET1K_V1
         self.preprocess = self.weights.transforms()
-        
+
         self.svm_classifier = svm.SVC(kernel='linear')
-        
-        self.classifier = cls()
-        self.classifier.alexnet = self.model
-        self.classifier.svm_classifier = self.svm_classifier
-    
+
+        self.classifier['alexnet'] = self.model
+        self.classifier['svm_classifier'] = self.svm_classifier
+
     def load_model_state(path):
         checkpoint = torch.load(filename)
-        
-        classifier = cls()
-        classifier.alexnet.load_state_dict(checkpoint['alexnet_state_dict'])
-        classifier.svm_classifier = checkpoint['svm_classifier']
-        
+
+        classifier = {}
+        classifier['alexnet'] = alexnet.load_state_dict(checkpoint['alexnet_state_dict'])
+        classifier['svm_classifier'] = checkpoint['svm_classifier']
+
         return classifier
-    
-    def getModel(self):
-        self.createModel()
+
+    def get_model(self):
+        self.create_model()
         return self.classifier
 	    
-	def extract_features(img):
-	    with torch.no_grad():
-	        features = self.model(img.unsqueeze(0))
-	        features = features.view(features.size(0), -1)
-	    return features
+    def extract_features(self, img):
+        with torch.no_grad():
+            features = self.model(img.cuda().float())
+            features = features.view(features.size(0), -1)
+        return features
     
-    def trainModel(self, criterion, optimizer, scheduler, num_epochs, train_loader, test_loader, device, dataset_sizes):
+    def train_model(self, criterion, optimizer, scheduler, num_epochs, train_loader, test_loader, device, dataset_sizes):
         since = time.time()
+        self.model.cuda()
         # Create a temporary directory to save training checkpoints
         with TemporaryDirectory() as tempdir:
             best_model_params_path = os.path.join(tempdir, 'best_model_params.pt')
 
-            torch.save(self.model.state_dict(), best_model_params_path)
             best_acc = 0.0
 
             for epoch in range(num_epochs):
-                print(f'Epoch {epoch}/{self.num_epochs - 1}')
+                print(f'Epoch {epoch}/{num_epochs - 1}')
                 print('-' * 10)
 
                 # Each epoch has a training and validation phase
@@ -90,14 +91,15 @@ class CustomAlexnetSVM():
                         
                         feature_batch = []
                         for i, img in enumerate(inputs):
-                           inputs[i] = self.preprocess(img).unsqueeze(0)
-                           features = self.extract_features(inputs[i])
-                           feature_batch.append(features.numpy())
+                           new_img = self.preprocess(img).unsqueeze(0)
+                           inputs[i] = new_img
+                           features = self.extract_features(new_img)
+                           feature_batch.append(features.cpu().numpy())
                         
                         feature_batch = np.stack(feature_batch)
                         
                         if phase == 'train':
-                            self.svm_classifier.train(features, scores)
+                            self.svm_classifier.fit(features, scores)
                         else:
                             accuracy = svm_classifier.evaluate(features, scores)
                             print("Accuracy: ", accuracy)

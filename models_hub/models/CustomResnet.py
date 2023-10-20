@@ -1,4 +1,6 @@
 from torchvision.models import resnet50, ResNet50_Weights
+import os
+import torch
 from tempfile import TemporaryDirectory
 import torch.nn as nn
 import time
@@ -10,15 +12,16 @@ class CustomResnet():
         self.weights = None
         self.preprocess = None
     
-    def createModel(self):
+    def create_model(self):
         self.model = resnet50(weights=None)
         self.weights = ResNet50_Weights.DEFAULT
         self.preprocess = self.weights.transforms()
         num_ftrs = self.model.fc.in_features
         self.model.fc = nn.Linear(num_ftrs, self.total_classes)
    
-    def trainModel(self, criterion, optimizer, scheduler, num_epochs, train_loader, test_loader, device, dataset_sizes):
+    def train_model(self, criterion, optimizer, scheduler, num_epochs, train_loader, test_loader, device, dataset_sizes):
         since = time.time()
+        self.model.to(device)
         # Create a temporary directory to save training checkpoints
         with TemporaryDirectory() as tempdir:
             best_model_params_path = os.path.join(tempdir, 'best_model_params.pt')
@@ -89,8 +92,8 @@ class CustomResnet():
             self.model.load_state_dict(torch.load(best_model_params_path))
         return self.model
 
-    def getModel(self):
-        self.createModel()
+    def get_model(self):
+        self.create_model()
         return self.model
 
         
