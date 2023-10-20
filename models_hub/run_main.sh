@@ -9,6 +9,8 @@ echo '1. model name to be saved'
 
 read -p 'saved_model_name_with_pt: ' model_name
 
+export 'PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512'
+
 nohup python3 -u main.py $model_name > nohup_output/"balanced_output.txt" &
 
 

@@ -10,11 +10,14 @@ class CustomResnet():
         self.preprocess = None
     
     def createModel(self):
-        self.model = resnet50(weights=ResNet50_Weights.DEFAULT)
+        self.model = resnet50(weights=None)
         self.weights = ResNet50_Weights.DEFAULT
         self.preprocess = self.weights.transforms()
         num_ftrs = self.model.fc.in_features
         self.model.fc = nn.Linear(num_ftrs, self.total_classes)
+        for param in self.model.parameters():
+            param.requires_grad = True
+        self.model.fc.requires_grad = True
     
     def getModel(self):
         self.createModel()

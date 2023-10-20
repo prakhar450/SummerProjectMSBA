@@ -8,7 +8,7 @@ class TrainModel():
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
-        self.exp_lr_scheduler = exp_lr_scheduler
+        self.scheduler = exp_lr_scheduler
         self.num_epochs = num_epochs
         self.preprocess = preprocess
         self.train_loader = train_loader
@@ -45,15 +45,16 @@ class TrainModel():
                     for sample_batch in dataloader:
                         inputs = sample_batch['image'].to(self.device)
                         scores = sample_batch['score'].to(self.device)
-
-                        inputs = self.preprocess(inputs).unsqueeze(0)
+                        for i, img in enumerate(inputs):
+                           inputs[i] = self.preprocess(img).unsqueeze(0) 
+                            
                         # zero the parameter gradients
                         self.optimizer.zero_grad()
 
                         # forward
                         # track history if only in train
                         with torch.set_grad_enabled(phase == 'train'):
-                            outputs = self.model(inputs).squeeze(0)
+                            outputs = self.model(inputs.float())
                             _, preds = torch.max(outputs, 1)
                             loss = self.criterion(outputs, scores)
 

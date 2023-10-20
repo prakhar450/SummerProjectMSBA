@@ -1,4 +1,4 @@
-import CustomResnet
+from CustomResnet import CustomResnet
 
 class CustomModel():
     def __init__(self, model_name, total_classes):
@@ -7,4 +7,4 @@ class CustomModel():
     
     def retrieveModel(self):
         if self.model_name == "resnet50":
-            return CustomResnet(total_classes=self.total_classes)
+            return CustomResnet(total_classes=self.total_classes).getModel()

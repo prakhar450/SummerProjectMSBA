@@ -42,6 +42,7 @@ Arguments to this code
 
 np.random.seed(100)
 num_workers = 0
+model = "../SummerProjectMSBA/saved_models/oct16/unbalanced_custom_resnet50.pt"
 batch_size = 32
 
 img_dir = '../images'
@@ -69,10 +70,10 @@ class CustomDataset(Dataset):
         if torch.is_tensor(index):
             index = index.tolist()
 
-        img_path = os.path.join(self.img_dir, self.df.iloc[index, 1])
+        img_path = os.path.join(self.img_dir, self.df.iloc[index, 0])
         image = io.imread(img_path)
-        score = self.df.iloc[index, 2]
-        actual_score = self.df.iloc[index, 6]
+        score = self.df.iloc[index, 1]
+        actual_score = self.df.iloc[index, 5]
 
         sample = {'image': image, 'score': score, 'actual_score': actual_score}
 
@@ -217,11 +218,29 @@ def run_combined_model_and_store_outputs(model):
 
 total_classes = transformed_image_datasets['train'].df['trueskill.score'].max() + 1
 
-model_ft = resnet50()
-num_ftrs = model_ft.fc.in_features
-model_ft.fc = nn.Linear(num_ftrs, total_classes)
+#model_ft = resnet50()
+#num_ftrs = model_ft.fc.in_features
+#model_ft.fc = nn.Linear(num_ftrs, total_classes)
 
-PATH = "./saved_models/{}".format(sys.argv[1])
+# Define a custom model by inheriting nn.Module
+class CustomResNet(nn.Module):
+    def __init__(self, num_classes=36):
+        super(CustomResNet, self).__init__()
+        # Load pretrained ResNet-50
+        self.resnet = models.resnet50(pretrained=True)
+        # Modify the fully connected layer
+        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, num_classes)
+
+    def forward(self, x):
+        return self.resnet(x)
+
+# Instantiate the custom model
+num_classes = 36
+model_ft = CustomResNet(num_classes).cuda()
+
+
+
+PATH = "../SummerProjectMSBA/saved_models/oct16/unbalanced_custom_resnet50.pt"
 model_ft.load_state_dict(torch.load(PATH))
 
 model_ft.to(device)

@@ -3,6 +3,7 @@ import os
 from skimage import io
 import pandas as pd
 from torch.utils.data import Dataset
+import torchvision
 
 class CustomDataset(Dataset):
     def __init__(self, csv_path, img_dir, transform = None):
@@ -18,7 +19,7 @@ class CustomDataset(Dataset):
             index = index.tolist()
 
         img_path = os.path.join(self.img_dir, self.df.iloc[index, 0])
-        image = io.imread(img_path)
+        image = torchvision.io.read_image(img_path)
         score = self.df.iloc[index, 1]
         actual_score = self.df.iloc[index, 5]
 
