@@ -29,7 +29,9 @@ Change other params as required
 
 trained_model_file = "./saved_models/{}".format(sys.argv[1])
 model_name = sys.argv[2]
-batch_size = 16
+print("training: "+ model_name)
+print("saving model to: " + trained_model_file)
+batch_size = 64
 num_epochs = 10
 num_workers = 1
 total_classes = 36

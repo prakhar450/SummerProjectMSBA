@@ -159,5 +159,5 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 models_hub/saved_models/
-models_hub/nohup_output/
 models_hub/csvs
+models_hub/nohup_output/
