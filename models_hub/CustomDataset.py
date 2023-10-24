@@ -18,12 +18,12 @@ class CustomDataset(Dataset):
         if torch.is_tensor(index):
             index = index.tolist()
 
-        img_path = os.path.join(self.img_dir, self.df.iloc[index, 0])
+        img_path = os.path.join(self.img_dir, self.df.iloc[index, 1])
+        image_id = self.df.iloc[index, 0]
         image = torchvision.io.read_image(img_path)
-        score = self.df.iloc[index, 1]
-        actual_score = self.df.iloc[index, 5]
+        score = self.df.iloc[index, 2]
 
-        sample = {'image': image, 'score': score, 'actual_score': actual_score}
+        sample = {'image': image, 'score': score, 'image_id': image_id}
 
         if self.transform:
             sample['image'] = self.transform(sample['image'])

@@ -1,0 +1,142 @@
+import torch.nn as nn
+from cuml import SVC
+from cuml.svm import LinearSVC
+import os
+import time
+import torch
+import torch.optim as optim
+import torchvision.models as models
+from torchvision import transforms
+from sklearn import svm
+from sklearn.svm import NuSVR
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+from sklearn.metrics import accuracy_score, r2_score
+import pandas as pd
+import numpy as np
+from tempfile import TemporaryDirectory
+from tqdm import tqdm
+
+
+class CustomAlexnetSVM():
+    def __init__(self, total_classes):
+        self.total_classes = total_classes
+        self.model = None
+        self.weights = None
+        self.preprocess = None
+        self.classifier = {}
+    
+    def create_model(self):
+        arch = "alexnet"
+        model_file = '%s_places365.pth.tar' % arch
+        if not os.access(model_file, os.W_OK):
+            weight_url = 'http://places2.csail.mit.edu/models_places365/' + model_file
+            os.system('wget ' + weight_url)
+
+        self.model = models.__dict__[arch](num_classes=365)
+        checkpoint = torch.load(model_file, map_location=lambda storage, loc: storage)
+        state_dict = {str.replace(k,'module.',''): v for k,v in checkpoint['state_dict'].items()}
+        self.model.load_state_dict(state_dict)
+        # change the last layer for regression task
+        self.model.classifier[4] = nn.Linear(4096,512)
+        self.model.classifier[6] = nn.Linear(512,1)
+
+        self.weights = models.AlexNet_Weights.IMAGENET1K_V1
+        self.preprocess = self.weights.transforms()
+
+        self.svm_classifier = make_pipeline(StandardScaler(), NuSVR(nu=0.5, C = 0.1, kernel='rbf'))
+        #self.svm_classifier = SVC(kernel='linear', gamma='auto')
+        #self.svm_classifier = LinearSVC(loss='squared_hinge', penalty='l2', C=1)
+
+        self.classifier['alexnet'] = self.model
+        self.classifier['svm_classifier'] = self.svm_classifier
+
+    def load_model_state(self, path):
+        checkpoint = torch.load(path)
+
+        classifier = {}
+        classifier['alexnet'] = self.model.load_state_dict(checkpoint['alexnet_state_dict'])
+        classifier['svm_classifier'] = checkpoint['svm_classifier']
+
+        return classifier
+
+    def get_model(self):
+        self.create_model()
+        return self.classifier
+
+    def train_model(self, criterion, optimizer, scheduler, num_epochs, train_loader, test_loader, device, dataset_sizes):
+        self.model.to(device)
+        learning_rate = 1e-4
+        criterion = nn.MSELoss()
+        optimizer = optim.SGD(self.model.parameters(), lr=learning_rate, momentum=0.9)
+        gamma = 0.5
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=gamma)  # Learning rate scheduler
+        
+
+        # Create a temporary directory to save training checkpoints
+        with TemporaryDirectory() as tempdir:
+            
+            for epoch in range(num_epochs):
+                # Print current learning rate
+                current_lr = optimizer.param_groups[0]['lr']
+                print(f"Epoch {epoch+1}/{num_epochs} - Learning Rate: {current_lr:.6f}")
+
+                self.model.train()  # Set the model to training mode
+                running_loss = 0.0
+                for i, (images, scores, image_ids) in enumerate(train_loader):
+
+                    images = images.float().to(device)
+                    scores = scores.to(device)
+
+
+                    # Forward pass
+                    outputs = self.model(images)
+                    #scores = scores.view(-1, 1).to(device)  # Reshape target scores to match the shape of predicted scores
+                    loss = criterion(outputs, scores.float())  # Convert scores to float for regression task
+
+                    # Backward and optimize
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+
+                    running_loss += loss.item()
+
+                    if (i + 1) % 1000 == 0:
+                        print(f"Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}")
+
+                epoch_loss = running_loss / len(train_loader)
+                print(f"Epoch [{epoch+1}/{num_epochs}], Training Loss: {epoch_loss:.4f}")
+
+                # Run the validation loop
+                self.model.eval()  # Set the model to evaluation mode
+                with torch.no_grad():
+                    val_loss = 0.0
+                    num_samples = 0
+                    predictions = []  # Store predicted scores
+                    actual_scores = []  # Store actual scores
+                    image_ids = []  # Store image IDs
+                    for images, scores, image_ids_batch in test_loader:
+                        images = images.float().to(device)
+                        scores = scores.to(device)
+                        scores = scores.view(-1, 1).to(device)
+
+                        outputs = self.model(images)
+                        val_loss += criterion(outputs, scores.float()).item()
+                        num_samples += scores.size(0)
+
+                        predictions.extend(outputs.cpu().numpy().tolist())
+                        actual_scores.extend(scores.cpu().numpy().tolist())
+                        image_ids.extend(image_ids_batch)
+
+                    val_loss /= len(test_loader)
+                    print(f"Epoch [{epoch+1}/{num_epochs}], Test Error: {val_loss:.4f}")
+
+                    # Create a DataFrame to store the predicted scores, actual scores, and image IDs
+                    results_df = pd.DataFrame({'Image ID': image_ids, 'Predicted Score': predictions, 'Actual Score': actual_scores})
+                    results_df.to_csv(f'alexnet_aug_results_epoch_{epoch+1}.csv', index=False)  # Export the results to a CSV file
+
+                scheduler.step()  # Adjust the learning rate
+                accuracy = r2_score(actual_scores, predictions)
+                print("Epoch accuracy is : ", accuracy)
+            return self.model
+              

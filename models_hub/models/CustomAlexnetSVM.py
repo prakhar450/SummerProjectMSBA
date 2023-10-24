@@ -62,7 +62,7 @@ class CustomAlexnetSVM():
         self.classifier['svm_classifier'] = self.svm_classifier
 
     def load_model_state(path):
-        checkpoint = torch.load(filename)
+        checkpoint = torch.load(path)
 
         classifier = {}
         classifier['alexnet'] = alexnet.load_state_dict(checkpoint['alexnet_state_dict'])
